@@ -1,0 +1,134 @@
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+  <meta charset="utf-8">
+  <title>ChatRoom - User</title>
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="apple-touch-icon" href="icon.png">
+  <!-- Place favicon.ico in the root directory -->
+
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/main.css">
+
+  <meta name="theme-color" content="#fafafa">
+</head>
+<style>
+  input {
+    border: 1px solid black
+  }
+</style>
+<body>
+<h1>User Chat Room</h1><br>
+<div>
+  <div id="regis-chat-room">
+    <form id="room-submit">
+      Name : <input type="text" name="name" required><br>
+      Email : <input type="email" name="email" required><br>
+      <button type="submit">
+        Enter Chat Room
+      </button>
+    </form>
+  </div>
+  <div id="chat-room">
+    <div id="message-container" style="text-align: left">
+
+    </div>
+    <div>
+      <form id="send-message">
+        <input type="text" name="message" required>
+        <input type="hidden" name="actor" value="user" required>
+        <button type="submit" id="submit-msg" disabled>Send</button>
+      </form>
+    </div>
+  </div>
+  <div id="new-chat">
+    <button id="new-chat-room">New Chat Room</button>
+  </div>
+</div>
+<script src="js/vendor/modernizr-3.8.0.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"
+        integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+<script>window.jQuery || document.write('<script src="js/vendor/jquery-3.4.1.min.js"><\/script>')</script>
+<script>
+  var api = 'http://localhost/project/ChatRoom/chatroom-api/public/';
+  $('#new-chat').hide();
+  $('#room-submit').on('submit', function (e) {
+    e.preventDefault();
+    var data = $(this).serialize();
+    $.post(api + 'user/create-chat-room', data)
+      .then(function (res) {
+        localStorage.setItem('token_room', res.token);
+        $('#chat-room').show().siblings().hide();
+        cekStatusRoom(res.token, '')
+      })
+  });
+  if (localStorage.getItem('token_room')) {
+    var token = localStorage.getItem('token_room')
+    $('#chat-room').show();
+    $('#regis-chat-room').hide();
+    cekStatusRoom(token, '');
+  } else {
+    $('#chat-room').hide();
+    $('#regis-chat-room').show();
+  }
+
+  function cekStatusRoom(token, datetime) {
+    $.get(api + 'status-room/' + token)
+      .then(function (res) {
+        if (res.status == 'active') {
+          $('#submit-msg').attr('disabled', false)
+          getMessage(token, datetime)
+        } else {
+          $('#submit-msg').attr('disabled', true)
+          if (res.status == 'resolve') {
+            $('#new-chat').show();
+            $('#message-container').append('<p>Chat Room is Resolved</p>');
+          } else {
+            setTimeout(function () {
+              cekStatusRoom(token, datetime)
+            }, 1000)
+          }
+        }
+      })
+  }
+
+  function getMessage(token, datetime) {
+    $.get(api + 'chat-room/' + token + '?datetime=' + datetime)
+      .then(function (res) {
+        if (typeof res.id != 'undefined') {
+          var i = 0;
+          var msg = res.messages.map(function (val, n) {
+            i = n;
+            return '<p>' + val.actor + ' : ' + val.message + '</p>'
+          });
+          $('#message-container').html(msg);
+
+        }
+        setTimeout(function () {
+          cekStatusRoom(token, datetime);
+        }, 1000)
+      })
+  }
+
+  $('#send-message').on('submit', function (e) {
+    var token = localStorage.getItem('token_room')
+    e.preventDefault();
+    var data = $(this).serialize();
+    $.post(api + 'chat-room/' + token, data)
+      .then(function (res) {
+        $('#send-message')[0].reset();
+      })
+  })
+  $('#new-chat-room').click(function (e) {
+    e.preventDefault();
+    localStorage.removeItem('token_room');
+    $('#regis-chat-room').show().siblings().hide();
+  })
+</script>
+</body>
+
+</html>
